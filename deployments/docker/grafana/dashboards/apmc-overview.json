@@ -1,0 +1,123 @@
+{
+  "dashboard": {
+    "title": "APMC System Overview",
+    "tags": ["apmc", "overview"],
+    "timezone": "browser",
+    "refresh": "10s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Auction Service Requests/sec",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(grpc_server_handled_total{service=\"auction\"}[1m])",
+            "legendFormat": "{{method}}"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Auction Service Latency (p99)",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.99, rate(grpc_server_handling_seconds_bucket{service=\"auction\"}[5m]))",
+            "legendFormat": "{{method}}"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Active Auctions",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "auction_active_total",
+            "legendFormat": "Active"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Total Bids Placed",
+        "type": "stat",
+        "gridPos": {"x": 6, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "increase(bids_placed_total[1h])",
+            "legendFormat": "Last Hour"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "WebRTC Signaling Connections",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "webrtc_active_connections",
+            "legendFormat": "Active"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Kafka Consumer Lag",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "kafka_consumer_group_lag{topic=~\"apmc.*\"}",
+            "legendFormat": "{{topic}} - {{partition}}"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Circuit Breaker States",
+        "type": "table",
+        "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "circuit_breaker_state",
+            "format": "table"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "P2P DHT Nodes",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 24, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "p2p_dht_nodes",
+            "legendFormat": "Nodes"
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Price Updates Published/sec",
+        "type": "graph",
+        "gridPos": {"x": 6, "y": 24, "w": 18, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(price_updates_published_total[1m])",
+            "legendFormat": "Updates/sec"
+          }
+        ]
+      }
+    ]
+  },
+  "overwrite": true
+}

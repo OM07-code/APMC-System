@@ -1,0 +1,10 @@
+$kind: http-request
+url: "{{base_url}}/api/v1/market/index?commodity=COTTON"
+method: GET
+queryParams:
+  commodity: COTTON
+auth:
+  type: bearer
+  credentials:
+    token: "{{buyer_token}}"
+order: 7000

@@ -1,0 +1,17 @@
+$kind: http-request
+url: "{{base_url}}/api/v1/auctions/{{auction_id}}/bids"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "buyer_id": "{{buyer_id}}",
+      "amount": 6200
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{buyer_token}}"
+order: 6000

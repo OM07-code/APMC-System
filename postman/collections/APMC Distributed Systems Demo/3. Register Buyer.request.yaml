@@ -1,0 +1,23 @@
+$kind: http-request
+url: "{{base_url}}/api/v1/auth/register"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "buyer.postman@example.com",
+      "password": "password123",
+      "full_name": "Kishore (Trader)",
+      "role": "buyer"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      var jsonData = pm.response.json();
+      pm.environment.set("buyer_token", jsonData.access_token);
+      pm.environment.set("buyer_id", jsonData.user.id);
+      console.log("Saved buyer_token and buyer_id:", jsonData.user.id);
+    language: text/javascript
+order: 3000

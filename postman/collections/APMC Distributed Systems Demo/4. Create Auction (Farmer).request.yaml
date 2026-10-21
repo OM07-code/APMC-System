@@ -1,0 +1,29 @@
+$kind: http-request
+url: "{{base_url}}/api/v1/auctions"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "commodity": "COTTON",
+      "grade": "A",
+      "quantity": 50,
+      "base_price": 6000,
+      "duration_seconds": 600,
+      "apmc_location": "JLG",
+      "farmer_id": "{{farmer_id}}"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{farmer_token}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      var jsonData = pm.response.json();
+      pm.environment.set("auction_id", jsonData.auction.auction_id);
+      console.log("Saved auction_id:", jsonData.auction.auction_id);
+    language: text/javascript
+order: 4000

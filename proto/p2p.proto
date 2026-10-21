@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package apmc.p2p.v1;
+
+option js_import_style = "commonjs";
+option ts_nocheck = true;
+
+service P2PService {
+  rpc GetDHTInfo(DHTInfoRequest) returns (DHTInfoResponse);
+  rpc GetLeaderInfo(LeaderInfoRequest) returns (LeaderInfoResponse);
+  rpc GetGossipState(GossipStateRequest) returns (GossipStateResponse);
+  rpc PutDHT(PutDHTRequest) returns (PutDHTResponse);
+  rpc GetDHT(GetDHTRequest) returns (GetDHTResponse);
+}
+
+message DHTInfoRequest {}
+message DHTInfoResponse {
+  string node_id = 1;
+  int32 total_nodes = 2;
+  int32 buckets_used = 3;
+  int32 stored_keys = 4;
+  repeated string keys = 5;
+}
+
+message LeaderInfoRequest {}
+message LeaderInfoResponse {
+  bool is_leader = 1;
+  string leader_id = 2;
+  string self_id = 3;
+  int32 self_priority = 4;
+  repeated NodeInfo nodes = 5;
+}
+
+message NodeInfo {
+  string id = 1;
+  string host = 2;
+  int32 port = 3;
+  int32 priority = 4;
+  string state = 5;
+  string last_heartbeat = 6;
+}
+
+message GossipStateRequest {}
+message GossipStateResponse {
+  string node_id = 1;
+  int32 state_size = 2;
+  int32 peer_count = 3;
+  int32 state_version = 4;
+}
+
+message PutDHTRequest {
+  string key = 1;
+  string value = 2;
+  int64 ttl = 3;
+}
+
+message PutDHTResponse {
+  bool success = 1;
+}
+
+message GetDHTRequest {
+  string key = 1;
+}
+
+message GetDHTResponse {
+  string value = 1;
+}

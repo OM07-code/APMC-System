@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package apmc.naming.v1;
+
+option js_import_style = "commonjs";
+option ts_nocheck = true;
+
+service NamingService {
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Deregister(DeregisterRequest) returns (DeregisterResponse);
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+  rpc Lookup(LookupRequest) returns (LookupResponse);
+  rpc Watch(WatchRequest) returns (stream WatchResponse);
+  rpc Resolve(ResolveRequest) returns (ResolveResponse);
+}
+
+message RegisterRequest {
+  string name = 1;
+  string host = 2;
+  int32 port = 3;
+  map<string, string> metadata = 4;
+}
+
+message RegisterResponse {
+  bool success = 1;
+  string instance_id = 2;
+}
+
+message DeregisterRequest {
+  string instance_id = 1;
+}
+
+message DeregisterResponse {
+  bool success = 1;
+}
+
+message HeartbeatRequest {
+  string instance_id = 1;
+}
+
+message HeartbeatResponse {
+  bool success = 1;
+}
+
+message LookupRequest {
+  string name = 1;
+  map<string, string> metadata = 2;
+  string health = 3;
+  int32 limit = 4;
+  int32 offset = 5;
+}
+
+message LookupResponse {
+  repeated ServiceInstance instances = 1;
+}
+
+message WatchRequest {
+  string name = 1;
+  map<string, string> metadata = 2;
+  string health = 3;
+}
+
+message WatchResponse {
+  repeated ServiceInstance instances = 1;
+}
+
+message ResolveRequest {
+  string name = 1;
+}
+
+message ResolveResponse {
+  ServiceInstance instance = 1;
+}
+
+message ServiceInstance {
+  string id = 1;
+  string name = 2;
+  string host = 3;
+  int32 port = 4;
+  map<string, string> metadata = 5;
+  string health = 6;
+  string registered_at = 7;
+  string last_heartbeat = 8;
+}

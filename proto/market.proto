@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package apmc.market.v1;
+
+option js_import_style = "commonjs";
+option ts_nocheck = true;
+
+message PriceUpdate {
+  string auction_id = 1;
+  string commodity = 2;
+  string grade = 3;
+  int64 price = 4;
+  int64 timestamp = 5;
+  string apmc_location = 6;
+  string currency = 7;
+  PriceSource source = 8;
+}
+
+message MarketAlert {
+  string alert_id = 1;
+  AlertType type = 2;
+  string commodity = 3;
+  string message = 4;
+  int64 timestamp = 5;
+  map<string, string> metadata = 6;
+}
+
+message AuctionEvent {
+  string event_id = 1;
+  string auction_id = 2;
+  EventType type = 3;
+  int64 timestamp = 4;
+  map<string, string> data = 5;
+}
+
+message CommodityPriceIndex {
+  string commodity = 1;
+  string grade = 2;
+  int64 average_price = 3;
+  int64 min_price = 4;
+  int64 max_price = 5;
+  int64 volume = 6;
+  int64 timestamp = 7;
+  repeated RegionalPrice regional_prices = 8;
+}
+
+message RegionalPrice {
+  string apmc_location = 1;
+  int64 price = 2;
+  int64 volume = 3;
+}
+
+enum PriceSource {
+  PRICE_SOURCE_UNSPECIFIED = 0;
+  PRICE_SOURCE_AUCTION = 1;
+  PRICE_SOURCE_MANUAL = 2;
+  PRICE_SOURCE_EXTERNAL_API = 3;
+}
+
+enum AlertType {
+  ALERT_TYPE_UNSPECIFIED = 0;
+  ALERT_TYPE_PRICE_SPIKE = 1;
+  ALERT_TYPE_PRICE_DROP = 2;
+  ALERT_TYPE_NEW_AUCTION = 3;
+  ALERT_TYPE_AUCTION_ENDED = 4;
+  ALERT_TYPE_HIGH_DEMAND = 5;
+  ALERT_TYPE_LOW_SUPPLY = 6;
+}
+
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  EVENT_TYPE_AUCTION_CREATED = 1;
+  EVENT_TYPE_AUCTION_STARTED = 2;
+  EVENT_TYPE_BID_PLACED = 3;
+  EVENT_TYPE_AUCTION_ENDED = 4;
+  EVENT_TYPE_AUCTION_CANCELLED = 5;
+}

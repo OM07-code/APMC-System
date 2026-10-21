@@ -1,0 +1,43 @@
+{
+  "name": "apmc-system",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "proto:generate": "turbo run proto:generate",
+    "dev:services": "node scripts/dev-services.mjs",
+    "flow:test": "node scripts/flow-test.mjs",
+    "demo:circuit-breaker": "node scripts/demo/circuit-breaker.cjs",
+    "demo:naming": "node scripts/demo/naming-types.cjs",
+    "demo:dht": "node scripts/demo/dht-overlay.cjs",
+    "demo:webrtc": "node scripts/demo/webrtc-signaling.cjs",
+    "demo:mom": "node scripts/demo/mom-pubsub.cjs",
+    "demo:clocks": "node scripts/demo/sync-clocks.cjs",
+    "demo:election-mutex": "node scripts/demo/sync-election-mutex.cjs",
+    "demo:offline": "npm run demo:circuit-breaker && npm run demo:naming && npm run demo:dht",
+    "demo:unit3": "npm run demo:clocks && npm run demo:election-mutex",
+    "docker:up": "docker-compose -f docker-compose.yml up -d",
+    "docker:up:core": "docker-compose -f docker-compose.yml up -d postgres redis redpanda",
+    "docker:up:webrtc": "docker-compose -f docker-compose.yml up -d postgres redis redpanda coturn",
+    "docker:down": "docker-compose -f docker-compose.yml down",
+    "db:migrate": "turbo run db:migrate",
+    "db:seed": "turbo run db:seed"
+  },
+  "devDependencies": {
+    "turbo": "^1.13.0",
+    "typescript": "^5.4.0",
+    "@types/node": "^20.12.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "npm@10.5.0"
+}

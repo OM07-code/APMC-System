@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+package apmc.signaling.v1;
+
+option js_import_style = "commonjs";
+option ts_nocheck = true;
+
+service SignalingService {
+  rpc RegisterPeer(PeerRegistration) returns (PeerRegistrationResponse);
+  rpc UnregisterPeer(PeerUnregistration) returns (PeerUnregistrationResponse);
+  rpc CreateOffer(OfferRequest) returns (OfferResponse);
+  rpc CreateAnswer(AnswerRequest) returns (AnswerResponse);
+  rpc AddICECandidate(ICECandidateRequest) returns (ICECandidateResponse);
+  rpc GetPeers(GetPeersRequest) returns (GetPeersResponse);
+  rpc WatchSignals(SignalWatchRequest) returns (stream SignalEvent);
+}
+
+message PeerRegistration {
+  string peer_id = 1;
+  string peer_type = 2;
+  string apmc_location = 3;
+  map<string, string> metadata = 4;
+}
+
+message PeerRegistrationResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message PeerUnregistration {
+  string peer_id = 1;
+}
+
+message PeerUnregistrationResponse {
+  bool success = 1;
+}
+
+message OfferRequest {
+  string from_peer_id = 1;
+  string to_peer_id = 2;
+  string sdp = 3;
+  string type = 4;
+}
+
+message OfferResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message AnswerRequest {
+  string from_peer_id = 1;
+  string to_peer_id = 2;
+  string sdp = 3;
+  string type = 4;
+}
+
+message AnswerResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ICECandidateRequest {
+  string from_peer_id = 1;
+  string to_peer_id = 2;
+  string candidate = 3;
+  string sdp_mid = 4;
+  int32 sdp_mline_index = 5;
+}
+
+message ICECandidateResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetPeersRequest {
+  string apmc_location = 1;
+  string peer_type = 2;
+}
+
+message GetPeersResponse {
+  repeated PeerInfo peers = 1;
+}
+
+message PeerInfo {
+  string peer_id = 1;
+  string peer_type = 2;
+  string apmc_location = 3;
+  map<string, string> metadata = 4;
+  bool is_online = 5;
+  int64 last_seen = 6;
+}
+
+message SignalWatchRequest {
+  string peer_id = 1;
+}
+
+message SignalEvent {
+  string from_peer_id = 1;
+  SignalType type = 2;
+  string payload = 3;
+  int64 timestamp = 4;
+}
+
+enum SignalType {
+  SIGNAL_TYPE_UNSPECIFIED = 0;
+  SIGNAL_TYPE_OFFER = 1;
+  SIGNAL_TYPE_ANSWER = 2;
+  SIGNAL_TYPE_ICE_CANDIDATE = 3;
+  SIGNAL_TYPE_PEER_JOINED = 4;
+  SIGNAL_TYPE_PEER_LEFT = 5;
+}

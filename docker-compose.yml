@@ -1,0 +1,299 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: apmc-postgres
+    mem_limit: 512m
+    environment:
+      POSTGRES_USER: apmc
+      POSTGRES_PASSWORD: apmc
+      POSTGRES_DB: apmc
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U apmc -d apmc"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching, sessions, pub/sub
+  redis:
+    image: redis:7-alpine
+    container_name: apmc-redis
+    mem_limit: 256m
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Redpanda (Kafka-compatible, no ZooKeeper)
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v23.3.10
+    container_name: apmc-redpanda
+    mem_limit: 1200m
+    command:
+      - redpanda
+      - start
+      # Dual listener: `internal` for containers (advertised as redpanda:9092),
+      # `external` for host-run services via the launcher (advertised as
+      # localhost:19092). Kafka returns the advertised addr matching the listener
+      # each client connected through, so both run modes work simultaneously.
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+      - --overprovisioned
+      - --smp=1
+      - --memory=1G
+      - --reserve-memory=0M
+      - --node-id=0
+    ports:
+      - "9092:9092"
+      - "19092:19092"
+      - "9644:9644"
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # coturn STUN/TURN server for WebRTC
+  coturn:
+    image: coturn/coturn:4.6.2
+    container_name: apmc-coturn
+    mem_limit: 128m
+    command: >
+      -n
+      --lt-cred-mech
+      --realm=apmc.local
+      --user=apmc:apmcpass
+      --external-ip=host.docker.internal
+      --min-port=49160
+      --max-port=49200
+      --verbose
+    ports:
+      - "3478:3478/tcp"
+      - "3478:3478/udp"
+      - "5349:5349/tcp"
+      - "5349:5349/udp"
+      # Relay port range shrunk from 49152-65535 (16,384 UDP port mappings — the
+      # docker:up crash source: Docker spawns a userland proxy per published port)
+      # down to 41 ports. WebRTC media relay still works; enough for FA-1 demos.
+      - "49160-49200:49160-49200/udp"
+    healthcheck:
+      # `turnadmin -k` derives the long-term-credential HMAC key and REQUIRES -p;
+      # without it turnadmin exits 255 ("the password must be set"), so coturn was
+      # permanently "unhealthy" even while relaying fine. That mattered: the signaling
+      # service below declares `coturn: condition: service_healthy`, so in the
+      # full-Docker path signaling could never start. Password matches --user above.
+      test: ["CMD", "turnadmin", "-k", "-u", "apmc", "-r", "apmc.local", "-p", "apmcpass"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Jaeger for distributed tracing
+  jaeger:
+    image: jaegertracing/all-in-one:1.53
+    container_name: apmc-jaeger
+    mem_limit: 512m
+    ports:
+      - "16686:16686"
+      - "6831:6831/udp"
+      - "14268:14268"
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
+    volumes:
+      - jaeger_data:/var/lib/jaeger
+
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: apmc-prometheus
+    mem_limit: 512m
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deployments/docker/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: apmc-grafana
+    mem_limit: 256m
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    volumes:
+      - ./deployments/docker/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./deployments/docker/grafana/datasources:/etc/grafana/provisioning/datasources
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+  # API Gateway (Envoy)
+  envoy:
+    image: envoyproxy/envoy:v1.29-latest
+    container_name: apmc-envoy
+    mem_limit: 256m
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+      - "9901:9901"
+    volumes:
+      - ./deployments/docker/envoy.yaml:/etc/envoy/envoy.yaml
+    depends_on:
+      - auction
+      - signaling
+      - p2p
+      - naming
+      - gateway
+
+  # Auction Service
+  auction:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile.all
+      target: auction-runner
+    container_name: apmc-auction
+    mem_limit: 384m
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://apmc:apmc@postgres:5432/apmc
+      KAFKA_BROKERS: redpanda:9092
+      JWT_SECRET: development-secret-change-in-production-min-32-chars
+      AUCTION_GRPC_PORT: 50051
+      LOG_LEVEL: debug
+    ports:
+      - "50051:50051"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Signaling Service
+  signaling:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile.all
+      target: signaling-runner
+    container_name: apmc-signaling
+    mem_limit: 384m
+    environment:
+      NODE_ENV: development
+      REDIS_URL: redis://redis:6379
+      KAFKA_BROKERS: redpanda:9092
+      JWT_SECRET: development-secret-change-in-production-min-32-chars
+      SIGNALING_GRPC_PORT: 50052
+      TURN_SERVER: coturn
+      TURN_USERNAME: apmc
+      TURN_CREDENTIAL: apmcpass
+      LOG_LEVEL: debug
+    ports:
+      - "50052:50052"
+    depends_on:
+      redis:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      coturn:
+        condition: service_healthy
+
+  # P2P Overlay Service
+  p2p:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile.all
+      target: p2p-runner
+    container_name: apmc-p2p
+    mem_limit: 384m
+    environment:
+      NODE_ENV: development
+      REDIS_URL: redis://redis:6379
+      KAFKA_BROKERS: redpanda:9092
+      P2P_GRPC_PORT: 50053
+      LOG_LEVEL: debug
+    ports:
+      - "50053:50053"
+    depends_on:
+      redis:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+
+  # Naming Service
+  naming:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile.all
+      target: naming-runner
+    container_name: apmc-naming
+    mem_limit: 256m
+    environment:
+      NODE_ENV: development
+      REDIS_URL: redis://redis:6379
+      NAMING_GRPC_PORT: 50054
+      LOG_LEVEL: debug
+    ports:
+      - "50054:50054"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # API Gateway Service
+  gateway:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile.all
+      target: gateway-runner
+    container_name: apmc-gateway
+    mem_limit: 384m
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://apmc:apmc@postgres:5432/apmc
+      REDIS_URL: redis://redis:6379
+      KAFKA_BROKERS: redpanda:9092
+      JWT_SECRET: development-secret-change-in-production-min-32-chars
+      GATEWAY_HTTP_PORT: 8000
+      GATEWAY_GRPC_PORT: 8001
+      LOG_LEVEL: debug
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  redpanda_data:
+  jaeger_data:
+  prometheus_data:
+  grafana_data:

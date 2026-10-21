@@ -1,0 +1,17 @@
+# Use this workspace to collaborate
+workspace:
+  id: c11faba5-6370-4a61-8c8a-e89f4520c531
+
+localResources:
+  specs:
+    - ../proto/auction.proto
+    - ../proto/market.proto
+    - ../proto/naming.proto
+    - ../proto/p2p.proto
+    - ../proto/signaling.proto
+
+# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
+
+cloudResources:
+  collections:
+    ../postman/collections/APMC Distributed Systems Demo: 25d93521-d9e2-4471-89fc-acb7e3327b71

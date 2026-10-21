@@ -1,0 +1,116 @@
+# Base stage: install deps and build entire workspace
+FROM node:20-alpine AS base
+WORKDIR /app
+RUN apk add --no-cache python3 make g++
+COPY package.json turbo.json tsconfig.base.json ./
+COPY packages ./packages
+RUN npm install --workspaces --include-workspace-root
+
+# Builder stage: build all packages
+FROM base AS builder
+COPY . .
+RUN npm run build
+
+# Extract production node_modules (excluding @apmc workspace packages)
+FROM builder AS prod-deps
+WORKDIR /app
+RUN mkdir -p /prod-node-modules && \
+    cp -r node_modules/* /prod-node-modules/ && \
+    rm -rf /prod-node-modules/@apmc
+
+# Auction runner
+FROM node:20-alpine AS auction-runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder --chown=nodejs:nodejs /app/packages/auction/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/packages/auction/package.json ./package.json
+COPY --from=prod-deps /prod-node-modules ./node_modules
+COPY --from=builder /app/packages ./packages
+RUN mkdir -p ./node_modules/@apmc && \
+    cp -r ./packages/shared ./node_modules/@apmc/shared && \
+    cp -r ./packages/config ./node_modules/@apmc/config && \
+    cp -r ./packages/proto ./node_modules/@apmc/proto && \
+    cp -r ./packages/middleware ./node_modules/@apmc/middleware && \
+    cp -r ./packages/fault ./node_modules/@apmc/fault && \
+    cp -r ./packages/broker ./node_modules/@apmc/broker
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001 && chown -R nodejs:nodejs /app
+USER nodejs
+EXPOSE 50051
+CMD ["node", "dist/index.js"]
+
+# Gateway runner
+FROM node:20-alpine AS gateway-runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder --chown=nodejs:nodejs /app/packages/gateway/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/packages/gateway/package.json ./package.json
+COPY --from=prod-deps /prod-node-modules ./node_modules
+COPY --from=builder /app/packages ./packages
+RUN mkdir -p ./node_modules/@apmc && \
+    cp -r ./packages/shared ./node_modules/@apmc/shared && \
+    cp -r ./packages/config ./node_modules/@apmc/config && \
+    cp -r ./packages/proto ./node_modules/@apmc/proto && \
+    cp -r ./packages/middleware ./node_modules/@apmc/middleware && \
+    cp -r ./packages/fault ./node_modules/@apmc/fault && \
+    cp -r ./packages/naming ./node_modules/@apmc/naming
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001 && chown -R nodejs:nodejs /app
+USER nodejs
+EXPOSE 8000 8001
+CMD ["node", "dist/index.js"]
+
+# Signaling runner
+FROM node:20-alpine AS signaling-runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder --chown=nodejs:nodejs /app/packages/signaling/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/packages/signaling/package.json ./package.json
+COPY --from=prod-deps /prod-node-modules ./node_modules
+COPY --from=builder /app/packages ./packages
+RUN mkdir -p ./node_modules/@apmc && \
+    cp -r ./packages/shared ./node_modules/@apmc/shared && \
+    cp -r ./packages/config ./node_modules/@apmc/config && \
+    cp -r ./packages/proto ./node_modules/@apmc/proto && \
+    cp -r ./packages/middleware ./node_modules/@apmc/middleware && \
+    cp -r ./packages/fault ./node_modules/@apmc/fault && \
+    cp -r ./packages/naming ./node_modules/@apmc/naming
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001 && chown -R nodejs:nodejs /app
+USER nodejs
+EXPOSE 50052
+CMD ["node", "dist/index.js"]
+
+# P2P runner
+FROM node:20-alpine AS p2p-runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder --chown=nodejs:nodejs /app/packages/p2p/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/packages/p2p/package.json ./package.json
+COPY --from=prod-deps /prod-node-modules ./node_modules
+COPY --from=builder /app/packages ./packages
+RUN mkdir -p ./node_modules/@apmc && \
+    cp -r ./packages/shared ./node_modules/@apmc/shared && \
+    cp -r ./packages/config ./node_modules/@apmc/config && \
+    cp -r ./packages/middleware ./node_modules/@apmc/middleware && \
+    cp -r ./packages/fault ./node_modules/@apmc/fault && \
+    cp -r ./packages/naming ./node_modules/@apmc/naming
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001 && chown -R nodejs:nodejs /app
+USER nodejs
+EXPOSE 50053
+CMD ["node", "dist/index.js"]
+
+# Naming runner
+FROM node:20-alpine AS naming-runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder --chown=nodejs:nodejs /app/packages/naming/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/packages/naming/package.json ./package.json
+COPY --from=prod-deps /prod-node-modules ./node_modules
+COPY --from=builder /app/packages ./packages
+RUN mkdir -p ./node_modules/@apmc && \
+    cp -r ./packages/shared ./node_modules/@apmc/shared && \
+    cp -r ./packages/config ./node_modules/@apmc/config && \
+    cp -r ./packages/fault ./node_modules/@apmc/fault && \
+    cp -r ./packages/middleware ./node_modules/@apmc/middleware
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001 && chown -R nodejs:nodejs /app
+USER nodejs
+EXPOSE 50054
+CMD ["node", "dist/index.js"]

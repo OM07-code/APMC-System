@@ -1,0 +1,16 @@
+$kind: http-request
+url: "{{base_url}}/api/v1/auctions/{{auction_id}}/end"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "auctioneer_id": "{{auctioneer_id}}"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{auctioneer_token}}"
+order: 8000

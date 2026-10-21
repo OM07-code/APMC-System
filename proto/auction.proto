@@ -1,0 +1,124 @@
+syntax = "proto3";
+
+package apmc.auction.v1;
+
+option js_import_style = "commonjs";
+option ts_nocheck = true;
+
+service AuctionService {
+  rpc PlaceBid(BidRequest) returns (BidResponse);
+  rpc GetAuctionState(AuctionStateRequest) returns (AuctionStateResponse);
+  rpc WatchAuction(AuctionWatchRequest) returns (stream AuctionUpdate);
+  rpc CreateAuction(CreateAuctionRequest) returns (CreateAuctionResponse);
+  rpc EndAuction(EndAuctionRequest) returns (EndAuctionResponse);
+  rpc GetBidHistory(BidHistoryRequest) returns (BidHistoryResponse);
+}
+
+message BidRequest {
+  string auction_id = 1;
+  string buyer_id = 2;
+  int64 amount = 3;
+  int64 timestamp = 4;
+  string signature = 5;
+}
+
+message BidResponse {
+  bool success = 1;
+  string bid_id = 2;
+  int64 current_highest_bid = 3;
+  string message = 4;
+}
+
+message AuctionStateRequest {
+  string auction_id = 1;
+}
+
+message AuctionStateResponse {
+  string auction_id = 1;
+  string commodity = 2;
+  string grade = 3;
+  int64 quantity = 4;
+  int64 base_price = 5;
+  int64 current_highest_bid = 6;
+  string current_winner = 7;
+  int64 start_time = 8;
+  int64 end_time = 9;
+  AuctionStatus status = 10;
+  string apmc_location = 11;
+}
+
+message AuctionWatchRequest {
+  string auction_id = 1;
+}
+
+message AuctionUpdate {
+  string auction_id = 1;
+  UpdateType type = 2;
+  int64 new_bid = 3;
+  string bidder_id = 4;
+  int64 timestamp = 5;
+  AuctionStatus status = 6;
+}
+
+message CreateAuctionRequest {
+  string commodity = 1;
+  string grade = 2;
+  int64 quantity = 3;
+  int64 base_price = 4;
+  int64 duration_seconds = 5;
+  string apmc_location = 6;
+  string farmer_id = 7;
+  repeated string images = 8;
+}
+
+message CreateAuctionResponse {
+  string auction_id = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message EndAuctionRequest {
+  string auction_id = 1;
+  string auctioneer_id = 2;
+}
+
+message EndAuctionResponse {
+  bool success = 1;
+  string winner_id = 2;
+  int64 winning_bid = 3;
+  string message = 4;
+}
+
+message BidHistoryRequest {
+  string auction_id = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+message BidHistoryResponse {
+  repeated BidRecord bids = 1;
+  int32 total = 2;
+}
+
+message BidRecord {
+  string bid_id = 1;
+  string buyer_id = 2;
+  int64 amount = 3;
+  int64 timestamp = 4;
+  bool is_winning = 5;
+}
+
+enum AuctionStatus {
+  AUCTION_STATUS_UNSPECIFIED = 0;
+  AUCTION_STATUS_PENDING = 1;
+  AUCTION_STATUS_ACTIVE = 2;
+  AUCTION_STATUS_ENDED = 3;
+  AUCTION_STATUS_CANCELLED = 4;
+}
+
+enum UpdateType {
+  UPDATE_TYPE_UNSPECIFIED = 0;
+  UPDATE_TYPE_NEW_BID = 1;
+  UPDATE_TYPE_STATUS_CHANGE = 2;
+  UPDATE_TYPE_AUCTION_ENDED = 3;
+}
